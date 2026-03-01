@@ -2,27 +2,32 @@ name: Daily Push
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # 每天UTC时间7:00（北京时间15:00）
+    - cron: '0 6 * * *'  # 每天UTC时间6:00 = 北京时间14:00
   workflow_dispatch:  # 允许手动触发
 
 jobs:
   send-push:
     runs-on: ubuntu-latest
     steps:
+      # 拉取代码
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 配置Java环境（修正版，解决版本找不到的问题）
       - name: Set up Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          java-version: '1.8'
-          distribution: 'adopt'
+          java-version: '8'
+          distribution: 'temurin'  # 替换为官方维护的temurin，替代弃用的adopt
 
-      - name: Build and run
-        run: |
-          # 从GitHub Secrets获取微信配置
-          mvn -Dwechat.appid=${{ secrets.WECHAT_APPID }} \
-              -Dwechat.appsecret=${{ secrets.WECHAT_APPSECRET }} \
-              -Dwechat.openid=${{ secrets.WECHAT_OPENID }} \
-              clean package
-          java -jar target/wechat-push-1.0-SNAPSHOT.jar
+      # Maven打包
+      - name: Build with Maven
+        run: mvn clean package
+
+      # 运行推送程序（环境变量正确传递）
+      - name: Run WeChat Push
+        env:
+          WECHAT_APPID: ${{ secrets.WECHAT_APPID }}
+          WECHAT_APPSECRET: ${{ secrets.WECHAT_APPSECRET }}
+          WECHAT_OPENID: ${{ secrets.WECHAT_OPENID }}
+        run: java -jar target/wechat-push-1.0-SNAPSHOT.jar
