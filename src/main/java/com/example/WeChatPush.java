@@ -9,24 +9,31 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonArray;
 
 public class WeChatPush {
     private static final String TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential";
     private static final String SEND_MSG_URL = "https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=";
-    // 和风天气免费API：南京的城市ID是101190101，也可以用"nanjing"
     private static final String WEATHER_URL = "https://devapi.qweather.com/v7/weather/now?location=101190101&key=";
     private static final Gson GSON = new Gson();
 
     public static void main(String[] args) {
         System.out.println("=== 微信推送程序启动 ===");
-        // 从环境变量获取配置
+
+        // 强制打印所有环境变量，确认有没有读到
         String appId = System.getenv("WECHAT_APPID");
         String appSecret = System.getenv("WECHAT_APPSECRET");
         String openId = System.getenv("WECHAT_OPENID");
         String weatherKey = System.getenv("WEATHER_API_KEY");
 
-        // Java 8兼容的判空逻辑
+        System.out.println("【调试日志】WECHAT_APPID 是否为空：" + (appId == null));
+        System.out.println("【调试日志】WECHAT_APPSECRET 是否为空：" + (appSecret == null));
+        System.out.println("【调试日志】WECHAT_OPENID 是否为空：" + (openId == null));
+        System.out.println("【调试日志】WEATHER_API_KEY 是否为空：" + (weatherKey == null));
+        if (weatherKey != null) {
+            System.out.println("【调试日志】读到的天气Key前4位：" + weatherKey.substring(0, Math.min(4, weatherKey.length())));
+        }
+
+        // 判空拦截
         if (appId == null || appId.trim().isEmpty()) {
             System.err.println("错误：WECHAT_APPID 未配置");
             System.exit(1);
@@ -40,7 +47,7 @@ public class WeChatPush {
             System.exit(1);
         }
         if (weatherKey == null || weatherKey.trim().isEmpty()) {
-            System.err.println("错误：WEATHER_API_KEY 未配置");
+            System.err.println("错误：WEATHER_API_KEY 未配置，值为空");
             System.exit(1);
         }
 
@@ -51,15 +58,15 @@ public class WeChatPush {
 
             // 2. 获取南京天气
             String weatherInfo = getNanjingWeather(weatherKey);
-            System.out.println("✅ 获取天气成功：" + weatherInfo);
+            System.out.println("✅ 天气信息获取完成：" + weatherInfo);
 
             // 3. 拼接推送文案
             String pushContent = "☀️ 早安！\n" +
-                                 "【南京今日天气】\n" +
+                                 "【南京今日实时天气】\n" +
                                  weatherInfo + "\n" +
                                  "新的一天也要开心呀！";
             
-            // 4. 发送消息
+            // 4. 发送微信消息
             String result = sendMsg(accessToken, openId, pushContent);
             System.out.println("✅ 微信接口响应：" + result);
             System.out.println("=== 推送执行完成 ===");
@@ -71,31 +78,32 @@ public class WeChatPush {
         }
     }
 
-    /**
-     * 【新增方法】获取南京实时天气
-     * 原理：用HTTP GET请求调用和风天气API，解析返回的JSON
-     */
     private static String getNanjingWeather(String weatherKey) throws Exception {
         String url = WEATHER_URL + weatherKey;
+        System.out.println("🌤️  天气API请求URL：" + url.substring(0, url.length() - 10) + "****");
+
         try (CloseableHttpClient client = HttpClients.createDefault()) {
             HttpGet get = new HttpGet(url);
             try (CloseableHttpResponse response = client.execute(get)) {
                 String body = EntityUtils.toString(response.getEntity(), "UTF-8");
+                System.out.println("🌤️  天气API完整返回：" + body);
+
                 JsonObject json = GSON.fromJson(body, JsonObject.class);
-                
-                // 检查天气API是否调用成功
-                if (!json.get("code").getAsString().equals("200")) {
-                    throw new RuntimeException("获取天气失败：" + body);
+                if (json == null) {
+                    throw new RuntimeException("天气API返回空内容");
                 }
 
-                // 解析和风天气返回的JSON，提取需要的信息
-                JsonObject now = json.getAsJsonObject("now");
-                String temp = now.get("temp").getAsString(); // 温度
-                String text = now.get("text").getAsString(); // 天气状况（晴、多云等）
-                String windDir = now.get("windDir").getAsString(); // 风向
-                String humidity = now.get("humidity").getAsString(); // 湿度
+                String code = json.get("code").getAsString();
+                if (!"200".equals(code)) {
+                    throw new RuntimeException("天气API调用失败，错误码：" + code);
+                }
 
-                // 拼接成易读的天气文案
+                JsonObject now = json.getAsJsonObject("now");
+                String temp = now.get("temp").getAsString();
+                String text = now.get("text").getAsString();
+                String windDir = now.get("windDir").getAsString();
+                String humidity = now.get("humidity").getAsString();
+
                 return "天气：" + text + "\n" +
                        "温度：" + temp + "℃\n" +
                        "风向：" + windDir + "\n" +
