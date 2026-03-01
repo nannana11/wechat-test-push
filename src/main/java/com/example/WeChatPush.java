@@ -42,7 +42,8 @@ public class WeChatPush {
             System.out.println("✅ 获取access_token成功");
 
             // 2. 发送消息
-            String result = sendMsg(accessToken, openId, "☀\uFE0F☀\uFE0F早上好呀刘雨嫣小宝宝☀\uFE0F☀\uFE0F\n今天也要开开心心哦");
+            String result = sendMsg(accessToken, openId, "\n☀\uFE0F☀\uFE0F早上好呀刘雨嫣小宝宝☀\uFE0F☀\uFE0F\n
+                                    今天也要开开心心哦");
             System.out.println("✅ 微信接口响应：" + result);
             System.out.println("=== 推送执行完成 ===");
 
