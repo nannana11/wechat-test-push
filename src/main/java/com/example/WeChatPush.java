@@ -22,16 +22,16 @@ public class WeChatPush {
         String appSecret = System.getenv("WECHAT_APPSECRET");
         String openId = System.getenv("WECHAT_OPENID");
 
-        // 校验配置
-        if (appId == null || appId.isBlank()) {
+        // 【修正：Java 8兼容的判空逻辑，替换不兼容的isBlank()】
+        if (appId == null || appId.trim().isEmpty()) {
             System.err.println("错误：WECHAT_APPID 未配置");
             System.exit(1);
         }
-        if (appSecret == null || appSecret.isBlank()) {
+        if (appSecret == null || appSecret.trim().isEmpty()) {
             System.err.println("错误：WECHAT_APPSECRET 未配置");
             System.exit(1);
         }
-        if (openId == null || openId.isBlank()) {
+        if (openId == null || openId.trim().isEmpty()) {
             System.err.println("错误：WECHAT_OPENID 未配置");
             System.exit(1);
         }
@@ -70,7 +70,7 @@ public class WeChatPush {
 
     private static String sendMsg(String accessToken, String openId, String content) throws Exception {
         String url = SEND_MSG_URL + accessToken;
-        // 微信官方要求的标准格式
+        // 微信官方要求的标准消息格式
         JsonObject msg = new JsonObject();
         msg.addProperty("touser", openId);
         msg.addProperty("msgtype", "text");
