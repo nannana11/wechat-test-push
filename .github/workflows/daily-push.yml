@@ -2,7 +2,7 @@ name: Daily Push
 
 on:
   schedule:
-    - cron: '25 7 * * *'  # 每天UTC时间6:00 = 北京时间14:00
+    - cron: '25 6 * * *'  # 每天UTC时间6:00 = 北京时间14:00
   workflow_dispatch:  # 允许手动触发
 
 jobs:
