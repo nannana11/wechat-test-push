@@ -13,21 +13,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 配置Java环境（修正版，解决版本找不到的问题）
+      # 配置Java环境（兼容稳定版）
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'temurin'  # 替换为官方维护的temurin，替代弃用的adopt
+          distribution: 'temurin'
 
-      # Maven打包
+      # Maven打包：自动生成带依赖的可执行jar
       - name: Build with Maven
         run: mvn clean package
 
-      # 运行推送程序（环境变量正确传递）
+      # 运行推送程序（修正为正确的jar包文件名）
       - name: Run WeChat Push
         env:
           WECHAT_APPID: ${{ secrets.WECHAT_APPID }}
           WECHAT_APPSECRET: ${{ secrets.WECHAT_APPSECRET }}
           WECHAT_OPENID: ${{ secrets.WECHAT_OPENID }}
-        run: java -jar target/wechat-push-1.0-SNAPSHOT.jar
+        run: java -jar target/wechat-push-1.0-SNAPSHOT-jar-with-dependencies.jar
