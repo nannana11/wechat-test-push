@@ -21,7 +21,7 @@
             <artifactId>httpclient</artifactId>
             <version>4.5.14</version>
         </dependency>
-        <!-- Gson JSON解析（补全缺失的依赖） -->
+        <!-- Gson JSON解析 -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
@@ -29,9 +29,24 @@
         </dependency>
     </dependencies>
 
-    <!-- 打包配置：生成可执行jar包 -->
     <build>
         <plugins>
+            <!-- 给默认jar包指定主类，彻底解决no main manifest问题 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <!-- 和你的代码包名+类名完全一致 -->
+                            <mainClass>com.example.WeChatPush</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- 把所有依赖打进jar包，生成可执行的完整jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
