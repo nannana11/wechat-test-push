@@ -2,32 +2,29 @@ name: Daily Push
 
 on:
   schedule:
-    - cron: '00 0 * * *'  # 每天UTC时间6:00 = 北京时间14:00
+    - cron: '00 0 * * *'  # 北京时间每天14:25
   workflow_dispatch:  # 允许手动触发
 
 jobs:
   send-push:
     runs-on: ubuntu-latest
     steps:
-      # 拉取代码
-      - name: Checkout code
+      - name: 拉取代码
         uses: actions/checkout@v4
 
-      # 配置Java环境（兼容稳定版）
-      - name: Set up Java
+      - name: 配置Java环境
         uses: actions/setup-java@v4
         with:
           java-version: '8'
           distribution: 'temurin'
 
-      # Maven打包：自动生成带依赖的可执行jar
-      - name: Build with Maven
+      - name: Maven打包
         run: mvn clean package
 
-      # 运行推送程序（修正为正确的jar包文件名）
-      - name: Run WeChat Push
+      - name: 执行微信推送
         env:
           WECHAT_APPID: ${{ secrets.WECHAT_APPID }}
           WECHAT_APPSECRET: ${{ secrets.WECHAT_APPSECRET }}
           WECHAT_OPENID: ${{ secrets.WECHAT_OPENID }}
+          WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}  # 【新增】天气API Key
         run: java -jar target/wechat-push-1.0-SNAPSHOT-jar-with-dependencies.jar
