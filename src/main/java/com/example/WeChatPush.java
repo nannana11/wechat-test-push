@@ -16,10 +16,6 @@ public class WeChatPush {
     // 国内稳定免费天气接口，免Key、免注册，直接用
     private static final String WEATHER_URL = "https://api.oioweb.cn/api/weather/GetWeather?cityName=南京";
     private static final Gson GSON = new Gson();
-    // 超时设置，避免接口卡住
-    private static final CloseableHttpClient HTTP_CLIENT = HttpClients.custom()
-            .setConnectionTimeToLive(java.util.concurrent.TimeUnit.SECONDS, 10)
-            .build();
 
     public static void main(String[] args) {
         System.out.println("=== 微信推送程序启动 ===");
@@ -66,12 +62,6 @@ public class WeChatPush {
             System.err.println("❌ 程序核心执行失败：");
             e.printStackTrace();
             System.exit(1);
-        } finally {
-            try {
-                HTTP_CLIENT.close();
-            } catch (Exception e) {
-                // 忽略关闭异常
-            }
         }
     }
 
@@ -80,47 +70,50 @@ public class WeChatPush {
      */
     private static String getNanjingWeather() throws Exception {
         System.out.println("🌤️  正在请求天气接口...");
-        HttpGet get = new HttpGet(WEATHER_URL);
-        // 模拟浏览器请求，避免被拦截
-        get.setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
-        get.setHeader("Accept", "application/json");
+        // 用最基础的客户端创建方式，无兼容问题，自动关闭资源
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            HttpGet get = new HttpGet(WEATHER_URL);
+            // 模拟浏览器请求，避免被接口拦截
+            get.setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            get.setHeader("Accept", "application/json");
 
-        try (CloseableHttpResponse response = HTTP_CLIENT.execute(get)) {
-            // 先判断接口响应状态
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode != 200) {
-                throw new RuntimeException("接口响应异常，状态码：" + statusCode);
+            try (CloseableHttpResponse response = client.execute(get)) {
+                // 先判断接口响应状态
+                int statusCode = response.getStatusLine().getStatusCode();
+                if (statusCode != 200) {
+                    throw new RuntimeException("接口响应异常，状态码：" + statusCode);
+                }
+
+                // 读取接口返回内容
+                String body = EntityUtils.toString(response.getEntity(), "UTF-8");
+                System.out.println("🌤️  天气接口返回：" + body.substring(0, Math.min(300, body.length())) + "...");
+
+                // 解析JSON数据
+                JsonObject json = GSON.fromJson(body, JsonObject.class);
+                // 校验接口调用是否成功
+                if (!json.has("code") || json.get("code").getAsInt() != 200) {
+                    throw new RuntimeException("接口返回错误，错误信息：" + (json.has("msg") ? json.get("msg").getAsString() : "未知"));
+                }
+
+                // 提取天气核心信息
+                JsonObject data = json.getAsJsonObject("data");
+                JsonObject realtime = data.getAsJsonObject("realtime");
+                JsonObject today = data.getAsJsonObject("today");
+
+                String weather = realtime.get("weather").getAsString();
+                String temp = realtime.get("temperature").getAsString();
+                String lowTemp = today.get("low").getAsString();
+                String highTemp = today.get("high").getAsString();
+                String humidity = realtime.get("humidity").getAsString();
+                String wind = realtime.get("windDirect").getAsString() + realtime.get("windPower").getAsString();
+
+                // 拼接成易读的文案
+                return "天气：" + weather + "\n" +
+                       "实时温度：" + temp + "℃\n" +
+                       "今日温度：" + lowTemp + " ~ " + highTemp + "\n" +
+                       "湿度：" + humidity + "%\n" +
+                       "风向：" + wind;
             }
-
-            // 读取接口返回内容
-            String body = EntityUtils.toString(response.getEntity(), "UTF-8");
-            System.out.println("🌤️  天气接口返回：" + body.substring(0, Math.min(300, body.length())) + "...");
-
-            // 解析JSON数据
-            JsonObject json = GSON.fromJson(body, JsonObject.class);
-            // 校验接口调用是否成功
-            if (!json.has("code") || json.get("code").getAsInt() != 200) {
-                throw new RuntimeException("接口返回错误，错误信息：" + (json.has("msg") ? json.get("msg").getAsString() : "未知"));
-            }
-
-            // 提取天气核心信息
-            JsonObject data = json.getAsJsonObject("data");
-            JsonObject realtime = data.getAsJsonObject("realtime");
-            JsonObject today = data.getAsJsonObject("today");
-
-            String weather = realtime.get("weather").getAsString();
-            String temp = realtime.get("temperature").getAsString();
-            String lowTemp = today.get("low").getAsString();
-            String highTemp = today.get("high").getAsString();
-            String humidity = realtime.get("humidity").getAsString();
-            String wind = realtime.get("windDirect").getAsString() + realtime.get("windPower").getAsString();
-
-            // 拼接成易读的文案
-            return "天气：" + weather + "\n" +
-                   "实时温度：" + temp + "℃\n" +
-                   "今日温度：" + lowTemp + " ~ " + highTemp + "\n" +
-                   "湿度：" + humidity + "%\n" +
-                   "风向：" + wind;
         }
     }
 
@@ -129,14 +122,16 @@ public class WeChatPush {
      */
     private static String getAccessToken(String appId, String appSecret) throws Exception {
         String url = TOKEN_URL + "&appid=" + appId + "&secret=" + appSecret;
-        HttpGet get = new HttpGet(url);
-        try (CloseableHttpResponse response = HTTP_CLIENT.execute(get)) {
-            String body = EntityUtils.toString(response.getEntity(), "UTF-8");
-            JsonObject json = GSON.fromJson(body, JsonObject.class);
-            if (json.has("errcode") && json.get("errcode").getAsInt() != 0) {
-                throw new RuntimeException("获取微信token失败：" + body);
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            HttpGet get = new HttpGet(url);
+            try (CloseableHttpResponse response = client.execute(get)) {
+                String body = EntityUtils.toString(response.getEntity(), "UTF-8");
+                JsonObject json = GSON.fromJson(body, JsonObject.class);
+                if (json.has("errcode") && json.get("errcode").getAsInt() != 0) {
+                    throw new RuntimeException("获取微信token失败：" + body);
+                }
+                return json.get("access_token").getAsString();
             }
-            return json.get("access_token").getAsString();
         }
     }
 
@@ -152,11 +147,13 @@ public class WeChatPush {
         text.addProperty("content", content);
         msg.add("text", text);
 
-        HttpPost post = new HttpPost(url);
-        post.setHeader("Content-Type", "application/json;charset=UTF-8");
-        post.setEntity(new StringEntity(GSON.toJson(msg), "UTF-8"));
-        try (CloseableHttpResponse response = HTTP_CLIENT.execute(post)) {
-            return EntityUtils.toString(response.getEntity(), "UTF-8");
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            HttpPost post = new HttpPost(url);
+            post.setHeader("Content-Type", "application/json;charset=UTF-8");
+            post.setEntity(new StringEntity(GSON.toJson(msg), "UTF-8"));
+            try (CloseableHttpResponse response = client.execute(post)) {
+                return EntityUtils.toString(response.getEntity(), "UTF-8");
+            }
         }
     }
 }
