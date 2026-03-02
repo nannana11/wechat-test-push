@@ -49,7 +49,7 @@ public class WeChatPush {
             // 【新增】3. 计算距离2025年11月6日过去了多少天
             LocalDate targetDate = LocalDate.of(2025, 11, 6);
             long daysPassed = ChronoUnit.DAYS.between(targetDate, today); // 目标日期在前，今天在后，得到正数
-            String daysPassedStr = "距离2025年11月6日已经过去了 " + daysPassed + " 天";
+            String daysPassedStr = "我们在一起已经 " + daysPassed + " 天了"+"🥳";
             // 打印调试日志，确认日期计算正确
             System.out.println("📅 今天日期：" + todayStr);
             System.out.println("⏳ " + daysPassedStr);
@@ -71,15 +71,15 @@ public class WeChatPush {
             }
 
             // 4. 拼接推送文案
-            String pushContent = "☀️刘雨嫣小宝宝早安！☀️\n" +
+            String pushContent = "☀️☀️刘雨嫣小宝宝早安！☀️☀️\n" +
                     "\n"+
-                    "📅 " + todayStr + "\n" +
+                    "📅 " + "今天是" + todayStr + "\n" +
                     "⏳ " + daysPassedStr + "\n" +
                     "\n"+
                     "✨【南京今日天气】\n" +
                     weatherInfo + "\n" +
                     "\n"+
-                    "新的一天也要开心哦🥰"+
+                    "新的一天也要开心哦🥰\n"+
                     "加油加油💪";
 
             // 5. 发送微信消息
