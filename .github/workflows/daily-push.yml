@@ -2,8 +2,8 @@ name: Daily Push
 
 on:
   schedule:
-    - cron: '00 0 * * *'  # 北京时间每天14:25
-  workflow_dispatch:  # 允许手动触发
+    - cron: '30 23 * * *'  # 推荐：UTC 23:50 = 北京时间7:50，避开高峰
+  workflow_dispatch:
 
 jobs:
   send-push:
@@ -26,5 +26,5 @@ jobs:
           WECHAT_APPID: ${{ secrets.WECHAT_APPID }}
           WECHAT_APPSECRET: ${{ secrets.WECHAT_APPSECRET }}
           WECHAT_OPENID: ${{ secrets.WECHAT_OPENID }}
-          WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}  # 【新增】天气API Key
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}  # 【新增】OpenWeather Key
         run: java -jar target/wechat-push-1.0-SNAPSHOT-jar-with-dependencies.jar
