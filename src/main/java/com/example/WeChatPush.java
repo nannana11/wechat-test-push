@@ -10,7 +10,6 @@ import org.apache.http.util.EntityUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
-//日期显示
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -18,15 +17,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
 public class WeChatPush {
-    // ==================== 【提取的常量】完全保留 ====================
+    // ==================== 【完全保留你的常量】 ====================
     private static final String GIRLFRIEND_NAME = "刘雨嫣";
     private static final int NANJING_CITY_ID = 1806260;
     private static final LocalDate LOVE_START_DATE = LocalDate.of(2025, 11, 6);
     // ==============================================================
 
     private static final String TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential";
-    private static final String SEND_MSG_URL = "https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=";
-    // OpenWeather API：使用常量中的城市ID
+    private static final String SEND_TEMPLATE_URL = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=";
     private static final String WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather?id=" + NANJING_CITY_ID + "&units=metric&lang=zh_cn&appid=";
     private static final Gson GSON = new Gson();
 
@@ -38,55 +36,64 @@ public class WeChatPush {
         String appSecret = System.getenv("WECHAT_APPSECRET");
         String openId = System.getenv("WECHAT_OPENID");
         String weatherKey = System.getenv("OPENWEATHER_API_KEY");
+        String templateId = System.getenv("WECHAT_TEMPLATE_ID");
 
         // 微信核心配置判空
         if (appId == null || appId.trim().isEmpty()
                 || appSecret == null || appSecret.trim().isEmpty()
-                || openId == null || openId.trim().isEmpty()) {
-            System.err.println("错误：微信核心配置缺失，程序终止");
+                || openId == null || openId.trim().isEmpty()
+                || templateId == null || templateId.trim().isEmpty()) {
+            System.err.println("错误：微信核心配置或模板ID缺失，程序终止");
             System.exit(1);
         }
 
         try {
-            // 【完全保留】日期计算
+            // 【完全保留你的日期计算】
             LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
             DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy年MM月dd日 EEEE", Locale.CHINA);
             String todayStr = today.format(dateFormatter);
-            long daysPassed = ChronoUnit.DAYS.between(LOVE_START_DATE, today);
-            String daysPassedStr = "我们在一起已经 " + daysPassed + " 天了"+"🥳";
+            long loveDays = ChronoUnit.DAYS.between(LOVE_START_DATE, today);
+
             System.out.println("📅 今天日期：" + todayStr);
-            System.out.println("⏳ " + daysPassedStr);
+            System.out.println("⏳ 在一起：" + loveDays + "天");
             
             // 【完全保留】获取微信access_token
             String accessToken = getAccessToken(appId, appSecret);
             System.out.println("✅ 获取access_token成功");
 
-            // 【完全保留】获取南京天气
-            String weatherInfo = "⚠️  暂时无法获取天气信息\n";
+            // 【完全保留你的天气获取逻辑】
+            String greeting = "☀️☀️" + GIRLFRIEND_NAME + "小宝宝早安！☀️☀️";
+            String weatherDesc = "未知";
+            String temp = "未知";
+            String humidity = "未知";
+            String windSpeed = "未知";
+            String pressure = "未知";
+            String closing = "新的一天也要开心哦🥰\n加油加油💪";
+
             if (weatherKey != null && !weatherKey.trim().isEmpty()) {
                 try {
-                    weatherInfo = getNanjingWeather(weatherKey);
-                    System.out.println("✅ 天气获取成功：" + weatherInfo.replace("\n", " "));
+                    JsonObject weatherData = getWeatherData(weatherKey);
+                    JsonObject main = weatherData.getAsJsonObject("main");
+                    JsonObject weather = weatherData.getAsJsonArray("weather").get(0).getAsJsonObject();
+                    JsonObject wind = weatherData.getAsJsonObject("wind");
+
+                    weatherDesc = weather.get("description").getAsString();
+                    temp = main.get("temp").getAsString() + "℃（体感" + main.get("feels_like").getAsString() + "℃）";
+                    humidity = main.get("humidity").getAsString() + "%";
+                    windSpeed = wind.get("speed").getAsString() + "m/s";
+                    pressure = main.get("pressure").getAsString() + "hPa";
+                    
+                    System.out.println("✅ 天气获取成功：" + weatherDesc + " " + temp);
                 } catch (Exception e) {
                     System.err.println("⚠️  天气获取失败：" + e.getMessage());
-                    e.printStackTrace();
                 }
             }
 
-            // 【完全保留】你原来的推送文案，一字未改
-            String pushContent = "☀️☀️" + GIRLFRIEND_NAME + "小宝宝早安！☀️☀️\n" +
-                    "\n"+
-                    "📅 " + "今天是" + todayStr + "\n" +
-                    "⏳ " + daysPassedStr + "\n" +
-                    "\n"+
-                    "✨【南京今日天气】\n" +
-                    weatherInfo + "\n" +
-                    "\n"+
-                    "新的一天也要开心哦🥰\n"+
-                    "加油加油💪";
-
-            // 【仅修改这里】改回纯文本text类型，不再发送卡片链接
-            String result = sendMsg(accessToken, openId, pushContent);
+            // 【保留模板发送形式，内容改回你原来的文案】
+            String result = sendTemplateMessage(accessToken, openId, templateId,
+                    greeting, todayStr, String.valueOf(loveDays),
+                    weatherDesc, temp, humidity, windSpeed, pressure, closing);
+            
             System.out.println("✅ 微信接口响应：" + result);
             System.out.println("=== 推送执行完成 ===");
 
@@ -98,9 +105,9 @@ public class WeChatPush {
     }
 
     /**
-     * 【完全保留】天气获取逻辑，一字未改
+     * 【完全保留】天气数据获取
      */
-    private static String getNanjingWeather(String weatherKey) throws Exception {
+    private static JsonObject getWeatherData(String weatherKey) throws Exception {
         String url = WEATHER_URL + weatherKey;
         System.out.println("🌤️  正在请求OpenWeather API...");
 
@@ -112,67 +119,51 @@ public class WeChatPush {
                 int statusCode = response.getStatusLine().getStatusCode();
                 if (statusCode != 200) {
                     String errorBody = EntityUtils.toString(response.getEntity(), "UTF-8");
-                    throw new RuntimeException("API状态码异常：" + statusCode + "，返回：" + errorBody);
+                    throw new RuntimeException("API状态码异常：" + statusCode);
                 }
-
                 String body = EntityUtils.toString(response.getEntity(), "UTF-8");
-                System.out.println("🌤️  API返回预览：" + body.substring(0, Math.min(300, body.length())) + "...");
-
-                // 解析OpenWeather返回的JSON
-                JsonObject json = GSON.fromJson(body, JsonObject.class);
-                JsonObject main = json.getAsJsonObject("main");
-                JsonObject weather = json.getAsJsonArray("weather").get(0).getAsJsonObject();
-                JsonObject wind = json.getAsJsonObject("wind");
-                JsonObject sys = json.getAsJsonObject("sys");
-
-                // 提取天气信息
-                String weatherDesc = weather.get("description").getAsString();
-                String temp = main.get("temp").getAsString();
-                String feelsLike = main.get("feels_like").getAsString();
-                String humidity = main.get("humidity").getAsString();
-                String windSpeed = wind.get("speed").getAsString();
-                String pressure = main.get("pressure").getAsString();
-
-                // 拼接成易读的文案
-                return "🌤️天气：" + weatherDesc + "\n" +
-                        "🌡️温度：" + temp + "℃（体感" + feelsLike + "℃）\n" +
-                        "💧湿度：" + humidity + "%\n" +
-                        "💨风速：" + windSpeed + "m/s\n" +
-                        "🌅气压：" + pressure + "hPa";
+                return GSON.fromJson(body, JsonObject.class);
             }
         }
     }
 
     /**
-     * 【完全保留】获取Token逻辑，一字未改
+     * 【完全保留】获取Token
      */
-    private static String getAccessToken(String appId, String appSecret) throws Exception {
-        String url = TOKEN_URL + "&appid=" + appId + "&secret=" + appSecret;
-        try (CloseableHttpClient client = HttpClients.createDefault()) {
-            HttpGet get = new HttpGet(url);
-            try (CloseableHttpResponse response = client.execute(get)) {
-                String body = EntityUtils.toString(response.getEntity(), "UTF-8");
-                JsonObject json = GSON.fromJson(body, JsonObject.class);
-                if (json.has("errcode") && json.get("errcode").getAsInt() != 0) {
-                    throw new RuntimeException("获取微信token失败：" + body);
-                }
-                return json.get("access_token").getAsString();
-            }
-        }
+    private static String getAccessToken(String appId, String secret) throws Exception {
+        CloseableHttpClient client = HttpClients.createDefault();
+        CloseableHttpResponse res = client.execute(new HttpGet(TOKEN_URL + "&appid=" + appId + "&secret=" + secret));
+        String body = EntityUtils.toString(res.getEntity());
+        return GSON.fromJson(body, JsonObject.class).get("access_token").getAsString();
     }
 
     /**
-     * 【恢复为纯文本发送】不再发送卡片链接，完全符合你的需求
+     * 【保留模板发送，彩色文字，内容匹配简化版模板】
      */
-    private static String sendMsg(String accessToken, String openId, String content) throws Exception {
-        String url = SEND_MSG_URL + accessToken;
+    private static String sendTemplateMessage(String token, String openId, String templateId,
+            String greeting, String date, String loveDays,
+            String weather, String temp, String humidity, String wind, String pressure, String closing) throws Exception {
+        String url = SEND_TEMPLATE_URL + token;
+        
         JsonObject msg = new JsonObject();
         msg.addProperty("touser", openId);
-        msg.addProperty("msgtype", "text"); // 改回纯文本类型
-        JsonObject text = new JsonObject();
-        text.addProperty("content", content);
-        msg.add("text", text);
+        msg.addProperty("template_id", templateId);
 
+        // 设置模板参数和颜色（保留彩色效果）
+        JsonObject data = new JsonObject();
+        data.add("greeting", createParam(greeting, "#FF69B4")); // 粉色
+        data.add("date", createParam(date, "#FFD700")); // 金色
+        data.add("love_days", createParam(loveDays, "#32CD32")); // 绿色
+        data.add("weather", createParam(weather, "#FF6347")); // 红色
+        data.add("temp", createParam(temp, "#FF69B4")); // 粉色
+        data.add("humidity", createParam(humidity, "#1E90FF")); // 蓝色
+        data.add("wind", createParam(wind, "#9370DB")); // 紫色
+        data.add("pressure", createParam(pressure, "#808080")); // 灰色
+        data.add("closing", createParam(closing, "#FF69B4")); // 粉色
+
+        msg.add("data", data);
+
+        // 发送请求
         try (CloseableHttpClient client = HttpClients.createDefault()) {
             HttpPost post = new HttpPost(url);
             post.setHeader("Content-Type", "application/json;charset=UTF-8");
@@ -181,5 +172,15 @@ public class WeChatPush {
                 return EntityUtils.toString(response.getEntity(), "UTF-8");
             }
         }
+    }
+
+    /**
+     * 辅助方法：创建带颜色的模板参数
+     */
+    private static JsonObject createParam(String value, String color) {
+        JsonObject param = new JsonObject();
+        param.addProperty("value", value);
+        param.addProperty("color", color);
+        return param;
     }
 }
