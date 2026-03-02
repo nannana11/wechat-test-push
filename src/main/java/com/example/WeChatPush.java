@@ -9,6 +9,12 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+//日期显示
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 
 public class WeChatPush {
     private static final String TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential";
@@ -35,11 +41,24 @@ public class WeChatPush {
         }
 
         try {
-            // 1. 获取微信access_token
+            // 【新增】1. 获取今天的日期（强制使用中国时区，避免GitHub Actions的UTC时区问题）
+            LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
+            // 【新增】2. 格式化日期：变成 "2026年03月02日 星期一" 这样的格式
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy年MM月dd日 EEEE", Locale.CHINA);
+            String todayStr = today.format(dateFormatter);
+            // 【新增】3. 计算距离2025年11月6日过去了多少天
+            LocalDate targetDate = LocalDate.of(2025, 11, 6);
+            long daysPassed = ChronoUnit.DAYS.between(targetDate, today); // 目标日期在前，今天在后，得到正数
+            String daysPassedStr = "距离2025年11月6日已经过去了 " + daysPassed + " 天";
+            // 打印调试日志，确认日期计算正确
+            System.out.println("📅 今天日期：" + todayStr);
+            System.out.println("⏳ " + daysPassedStr);
+            
+            // 2. 获取微信access_token
             String accessToken = getAccessToken(appId, appSecret);
             System.out.println("✅ 获取access_token成功");
 
-            // 2. 获取南京天气，OpenWeather海外环境极稳
+            // 3. 获取南京天气，OpenWeather海外环境极稳
             String weatherInfo = "⚠️  暂时无法获取天气信息\n";
             if (weatherKey != null && !weatherKey.trim().isEmpty()) {
                 try {
@@ -51,13 +70,19 @@ public class WeChatPush {
                 }
             }
 
-            // 3. 拼接推送文案
-            String pushContent = "☀️ 早安！\n" +
-                    "【南京今日天气】\n" +
+            // 4. 拼接推送文案
+            String pushContent = "☀️刘雨嫣小宝宝早安！☀️\n" +
+                    "\n"+
+                    "📅 " + todayStr + "\n" +
+                    "⏳ " + daysPassedStr + "\n" +
+                    "\n"+
+                    "✨【南京今日天气】\n" +
                     weatherInfo + "\n" +
-                    "新的一天也要开心呀！";
+                    "\n"+
+                    "新的一天也要开心哦🥰"+
+                    "加油加油💪";
 
-            // 4. 发送微信消息
+            // 5. 发送微信消息
             String result = sendMsg(accessToken, openId, pushContent);
             System.out.println("✅ 微信接口响应：" + result);
             System.out.println("=== 推送执行完成 ===");
@@ -106,11 +131,11 @@ public class WeChatPush {
                 String pressure = main.get("pressure").getAsString(); // 气压
 
                 // 拼接成易读的文案
-                return "天气：" + weatherDesc + "\n" +
-                        "温度：" + temp + "℃（体感" + feelsLike + "℃）\n" +
-                        "湿度：" + humidity + "%\n" +
-                        "风速：" + windSpeed + "m/s\n" +
-                        "气压：" + pressure + "hPa";
+                return "🌤️天气：" + weatherDesc + "\n" +
+                        "🌡️温度：" + temp + "℃（体感" + feelsLike + "℃）\n" +
+                        "💧湿度：" + humidity + "%\n" +
+                        "💨风速：" + windSpeed + "m/s\n" +
+                        "🌅气压：" + pressure + "hPa";
             }
         }
     }
